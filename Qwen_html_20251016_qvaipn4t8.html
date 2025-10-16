@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meu VS Code com Execução</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: #252526;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding: 12px;
+      border-right: 1px solid #3c3c3c;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo {
+      color: #fff;
+      font-weight: bold;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .file-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      margin-bottom: 4px;
+    }
+    .file-item:hover {
+      background-color: #2a2d2e;
+    }
+    .file-item.active {
+      background-color: #2a2d2e;
+      color: #fff;
+    }
+    #add-file-btn, #run-btn {
+      padding: 6px;
+      background: #3c3c3c;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    #add-file-btn:hover, #run-btn:hover {
+      background: #4a4a4a;
+    }
+    #run-btn {
+      background: #1e6a1e;
+    }
+    #run-btn:hover {
+      background: #2a8a2a;
+    }
+    .main {
+      margin-left: 220px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .tabs {
+      background-color: #252526;
+      height: 32px;
+      display: flex;
+      border-bottom: 1px solid #3c3c3c;
+    }
+    .tab {
+      padding: 6px 16px;
+      background-color: #1e1e1e;
+      border-right: 1px solid #3c3c3c;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+    }
+    .tab.active {
+      background-color: #2d2d2d;
+      color: white;
+    }
+    .tab .close {
+      margin-left: 8px;
+      opacity: 0.6;
+      cursor: pointer;
+    }
+    .tab .close:hover {
+      opacity: 1;
+      color: #ff5555;
+    }
+    #editor-container {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">📁 Explorer</div>
+    <div id="file-list"></div>
+    <button id="add-file-btn">+ Novo Arquivo</button>
+    <button id="run-btn">▶ Executar</button>
+  </div>
+
+  <div class="main">
+    <div class="tabs" id="tabs"></div>
+    <div id="editor-container"></div>
+  </div>
+
+  <!-- Carrega o Monaco Editor -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  <script>
+    let files = [
+      { name: 'index.js', content: 'console.log("Clique em ▶ Executar para rodar este código!");\n\nalert("Olá do VS Code Clone! 🚀");' }
+    ];
+    let activeFile = files[0].name;
+    let editor = null;
+
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+
+    require(['vs/editor/editor.main'], () => {
+      function getLanguage(filename) {
+        if (filename.endsWith('.html')) return 'html';
+        if (filename.endsWith('.css')) return 'css';
+        if (filename.endsWith('.js')) return 'javascript';
+        return 'plaintext';
+      }
+
+      editor = monaco.editor.create(document.getElementById('editor-container'), {
+        value: files[0].content,
+        language: getLanguage(files[0].name),
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: true },
+        fontSize: 14,
+        scrollBeyondLastLine: false,
+        tabSize: 2,
+        fontFamily: 'Consolas, "Courier New", monospace'
+      });
+
+      editor.onDidChangeModelContent(() => {
+        const file = files.find(f => f.name === activeFile);
+        if (file) file.content = editor.getValue();
+      });
+
+      renderFileList();
+      renderTabs();
+    });
+
+    function renderFileList() {
+      const list = document.getElementById('file-list');
+      list.innerHTML = '';
+      files.forEach(file => {
+        const el = document.createElement('div');
+        el.className = 'file-item ' + (file.name === activeFile ? 'active' : '');
+        el.textContent = file.name;
+        el.onclick = () => openFile(file.name);
+        list.appendChild(el);
+      });
+    }
+
+    function renderTabs() {
+      const tabs = document.getElementById('tabs');
+      tabs.innerHTML = '';
+      files.forEach(file => {
+        const tab = document.createElement('div');
+        tab.className = 'tab ' + (file.name === activeFile ? 'active' : '');
+        tab.innerHTML = `${file.name} <span class="close" onclick="removeFile('${file.name}')">×</span>`;
+        tab.onclick = (e) => {
+          if (!e.target.classList.contains('close')) openFile(file.name);
+        };
+        tabs.appendChild(tab);
+      });
+    }
+
+    function openFile(name) {
+      activeFile = name;
+      const file = files.find(f => f.name === name);
+      if (file && editor) {
+        const lang = getLanguage(file.name);
+        monaco.editor.setModelLanguage(editor.getModel(), lang);
+        editor.setValue(file.content);
+      }
+      renderFileList();
+      renderTabs();
+    }
+
+    document.getElementById('add-file-btn').addEventListener('click', () => {
+      const name = prompt('Nome do novo arquivo (ex: app.js, style.css, index.html):');
+      if (!name) return;
+      if (files.some(f => f.name === name)) {
+        alert('Arquivo já existe!');
+        return;
+      }
+      files.push({ name, content: '' });
+      openFile(name);
+    });
+
+    window.removeFile = function(name) {
+      if (files.length <= 1) {
+        alert('Você precisa de pelo menos um arquivo!');
+        return;
+      }
+      if (confirm(`Excluir "${name}"?`)) {
+        files = files.filter(f => f.name !== name);
+        if (activeFile === name) {
+          activeFile = files[0].name;
+          openFile(activeFile);
+        }
+        renderFileList();
+        renderTabs();
+      }
+    };
+
+    function getLanguage(filename) {
+      if (filename.endsWith('.html')) return 'html';
+      if (filename.endsWith('.css')) return 'css';
+      if (filename.endsWith('.js')) return 'javascript';
+      return 'plaintext';
+    }
+
+    // 🔥 FUNÇÃO DE EXECUÇÃO
+    document.getElementById('run-btn').addEventListener('click', () => {
+      const file = files.find(f => f.name === activeFile);
+      if (!file) return;
+
+      const code = file.content;
+      const name = file.name;
+
+      if (name.endsWith('.js')) {
+        try {
+          // Cria um contexto seguro (não tem acesso a variáveis globais perigosas)
+          // Mas ainda assim: cuidado com eval! Só para uso local.
+          eval(code);
+        } catch (err) {
+          alert(`Erro ao executar JavaScript:\n${err.message}`);
+          console.error(err);
+        }
+      } 
+      else if (name.endsWith('.html')) {
+        // Cria uma página completa e abre em nova aba
+        const win = window.open();
+        win.document.open();
+        win.document.write(code);
+        win.document.close();
+      }
+      else if (name.endsWith('.css')) {
+        alert('CSS não pode ser executado sozinho. Use com um arquivo HTML.');
+      }
+      else {
+        alert('Tipo de arquivo não suportado para execução.');
+      }
+    });
+  </script>
+</body>
+</html>
